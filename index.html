@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>m3u8 to SMusic Playlist Converter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #e9ecef;
+            color: #333;
+        }
+        h1 {
+            color: #212529;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        #dropArea {
+            border: 2px dashed #6c757d;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background-color: #ffffff;
+            transition: border-color 0.3s, background-color 0.3s;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #dropArea.highlight {
+            border-color: #28a745;
+            background-color: #e2f4e9;
+        }
+        #fileInput {
+            display: none;
+        }
+        #convertBtn {
+            display: block;
+            margin: 30px auto;
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #convertBtn:hover {
+            background-color: #218838;
+        }
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        a.download-link {
+            display: block;
+            margin-bottom: 10px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        a.download-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>m3u8 to SMusic Playlist Converter</h1>
+    <div id="dropArea">
+        <p>Drag and drop your .m3u8 files here or click to select them</p>
+        <input type="file" id="fileInput" multiple accept=".m3u8">
+    </div>
+    <button id="convertBtn">Convert</button>
+    <div id="result"></div>
+
+    <script>
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const result = document.getElementById('result');
+        let files = [];
+
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('highlight');
+        });
+
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('highlight');
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('highlight');
+            const droppedFiles = [...e.dataTransfer.files];
+            files = validateFiles(droppedFiles);
+            updateFileList();
+        });
+
+        dropArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            const selectedFiles = [...fileInput.files];
+            files = validateFiles(selectedFiles);
+            updateFileList();
+        });
+
+        function validateFiles(selectedFiles) {
+            const validFiles = selectedFiles.filter(file => file.name.endsWith('.m3u8'));
+            if (validFiles.length < selectedFiles.length) {
+                alert('Please upload only .m3u8 files.');
+            }
+            return validFiles;
+        }
+
+        function updateFileList() {
+            if (files.length > 0) {
+                const fileNames = files.map(file => file.name).join(', ');
+                dropArea.innerHTML = `<p>Selected files: ${fileNames}</p>`;
+            } else {
+                dropArea.innerHTML = `<p>Drag and drop your .m3u8 files here or click to select them</p>`;
+            }
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            if (files.length === 0) {
+                alert('Please select at least one .m3u8 file');
+                return;
+            }
+
+            result.innerHTML = ''; // Clear previous results
+
+            const convertedPlaylists = await Promise.all(files.map(convertPlaylist));
+            
+            convertedPlaylists.forEach((playlist, index) => {
+                const blob = new Blob([playlist], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = files[index].name.replace('.m3u8', '.m3u');
+                a.textContent = `Download ${a.download}`;
+                a.className = 'download-link';
+                result.appendChild(a);
+
+                // Trigger download automatically
+                a.click();
+                
+                // Revoke object URL after download
+                setTimeout(() => URL.revokeObjectURL(url), 100);
+            });
+        });
+
+        async function convertPlaylist(file) {
+            const content = await file.text();
+            const lines = content.split('\n');
+            let convertedLines = ['#EXTM3U'];
+
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].trim() !== '' && !lines[i].startsWith('#')) {
+                    convertedLines.push('../../../' + lines[i].trim());
+                }
+            }
+
+            return convertedLines.join('\n');
+        }
+    </script>
+</body>
+</html>
